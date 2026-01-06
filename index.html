@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<title>Play Store Reviews</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+
+<body class="bg-gray-100 min-h-screen flex justify-center">
+
+<!-- Container -->
+<div class="w-full max-w-md bg-white min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <div class="p-4 border-b sticky top-0 bg-white z-10">
+    <h1 class="text-lg font-semibold text-center">Play Store Reviews</h1>
+  </div>
+
+  <!-- Inputs -->
+  <div class="p-4 space-y-3">
+    <input id="link"
+      class="w-full border rounded p-3 text-sm"
+      placeholder="App ID or Play Store Link">
+
+    <input id="date" type="date"
+      class="w-full border rounded p-3 text-sm">
+
+    <button onclick="startLoad()"
+      class="w-full bg-blue-600 text-white py-3 rounded text-sm font-medium">
+      Get Reviews
+    </button>
+  </div>
+
+  <!-- Output -->
+  <div id="output"
+    class="flex-1 overflow-y-auto px-4 text-sm space-y-1">
+  </div>
+
+  <!-- Sticky Next Button -->
+  <div class="sticky bottom-0 bg-white p-3 border-t">
+    <button id="nextBtn" onclick="loadNext()"
+      class="hidden w-full bg-gray-900 text-white py-3 rounded text-sm font-medium">
+      Load More Reviews
+    </button>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+<script>
+let appLink = "";
+let currentDate = null;
+let offset = 0;
+const limit = 200; // 👈 ek tap = 200+
+
+function toast(msg, color="#2563eb") {
+  Toastify({
+    text: msg,
+    duration: 2000,
+    gravity: "top",
+    position: "center",
+    style: { background: color }
+  }).showToast();
+}
+
+function startLoad() {
+  appLink = document.getElementById("link").value.trim();
+  const dateVal = document.getElementById("date").value;
+
+  if (!appLink || !dateVal) {
+    toast("Link & Date required", "#dc2626");
+    return;
+  }
+
+  currentDate = new Date(dateVal);
+  offset = 0;
+  document.getElementById("output").innerHTML = "";
+  document.getElementById("nextBtn").classList.add("hidden");
+
+  loadChunk(true);
+}
+
+function loadChunk(isFirst=false) {
+  const out = document.getElementById("output");
+  const dateStr = currentDate.toISOString().split("T")[0];
+
+  toast(`Loading ${dateStr}`);
+
+  fetch(`/reviews?link=${encodeURIComponent(appLink)}&date=${dateStr}&offset=${offset}&limit=${limit}`)
+    .then(r => r.json())
+    .then(res => {
+
+      // Date heading
+      if (offset === 0) {
+        out.innerHTML += `
+          <div class="sticky top-[60px] bg-gray-200 px-2 py-1 rounded font-semibold mt-2">
+            ${dateStr}
+          </div>`;
+      }
+
+      // No reviews → skip date
+      if (!res.data || res.data.length === 0) {
+        moveToPreviousDate();
+        return;
+      }
+
+      res.data.forEach(r => {
+        out.innerHTML += `
+          <div class="border-b py-2">
+            ${r.user}
+          </div>`;
+      });
+
+      offset += res.returned;
+      document.getElementById("nextBtn").classList.remove("hidden");
+
+      // Date exhausted → auto move
+      if (offset >= res.total) {
+        moveToPreviousDate();
+      }
+    });
+}
+
+function loadNext() {
+  loadChunk();
+}
+
+function moveToPreviousDate() {
+  currentDate.setDate(currentDate.getDate() - 1);
+  offset = 0;
+  loadChunk(true);
+}
+</script>
+
+</body>
+  </html>
